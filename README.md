@@ -92,9 +92,9 @@ You can install the extension from [Marketplace](https://marketplace.visualstudi
 
 ## Keywords
 
-There are total 28 reserved Keywords and 8 Logical Operators present in this language which get recognized by this interpreter.
+There are total 29 reserved Keywords and 8 Logical Operators present in this language which get recognized by this interpreter.
 
-The 28 Keywords with their functions are provided here:
+The 29 Keywords with their functions are provided here:
 
 | Keywords | Description                                       |
 | -------- | ------------------------------------------------- |
@@ -103,6 +103,7 @@ The 28 Keywords with their functions are provided here:
 | `SCNL`   | Takes inputs upto the next newline character      |
 | `MOV`    | Assigns a value to a variable                     |
 | `INT`    | Converts a variable to an integer                 |
+| `CHAR`   | Converts an integer to its ASCII equivalent       |
 | `ADD`    | Adds two variables                                |
 | `SUB`    | Subtracts two variables                           |
 | `MUL`    | Multiplies two variables                          |
@@ -187,7 +188,7 @@ And yes. You can print multiple variables at once.
 
 ### Printing Special Characters
 
-To print a new line, tab, space, exclamation mark, dollar sign, and ampersand, we print these predefined variables: `$ENDL`, `$TAB`, `$SPC`, `$EXL`, `$DOL`, `$AMP` respectively.
+To print a new line, tab, space, exclamation mark, dollar sign, ampersand, left bracket, and right bracket, we print these predefined variables: `$ENDL`, `$TAB`, `$SPC`, `$EXL`, `$DOL`, `$AMP`, `$LBR` and `$RBR` respectively.
 
 ```
 PRT Hello World
@@ -280,6 +281,18 @@ INT $var1 $var2
 ```
 
 Here, the interpreter converts the variable `$var2` to integer and assign it to the variable `$var1`.
+
+---
+
+### Character Casting
+
+To convert an integer to its ASCII equivalent, we use the keyword `CHAR`.
+
+```
+CHAR $var1 $var2
+```
+
+Here, the interpreter converts the variable `$var2` to ASCII and assign it to the variable `$var1`.
 
 ---
 
