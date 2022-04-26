@@ -18,6 +18,8 @@ using namespace std;
 #define PRECEDENCE(x) \
     ((x) == "+" || (x) == "-" ? 0 : ((x) == "*" || (x) == "/" || (x) == "%" ? 1 : ((x) == "^" ? 2 : -1)))
 
+int line_num;
+
 enum op_code
 {
     PRT,    // Prints the tokens
@@ -33,6 +35,15 @@ enum op_code
     MOD,    // Modulo of two variables
     POW,    // Raises one variable to the power of another
     EXPR,   // Evaluates an expression
+    AND,    // Logical AND of two variables
+    OR,     // Logical OR of two variables
+    NOT,    // Logical NOT of a variable
+    BAND,   // Bitwise AND of two variables
+    BOR,    // Bitwise OR of two variables
+    BNOT,   // Bitwise NOT of a variable
+    BXOR,   // Bitwise XOR of two variables
+    LSHIFT, // Bitwise left shift of a variable
+    RSHIFT, // Bitwise right shift of a variable
     IF,     // If condition is true, executes the block
     JMP,    // Jumps to the specified line
     ARR,    // Stores a value in an array
@@ -41,9 +52,11 @@ enum op_code
     BYE,    // Exits the program
     STR,    // Stores strings as char arrays
     CAT,    // Concatenates strings
-    CALL,   // Calls a function
-    RECV,   // Receives values from a function
-    RET,    // Returns from a function
+    CALL,   // Calls a module
+    RECV,   // Receives values from a module
+    RET,    // Returns from a module
+    FCALL,  // Calls a function
+    FRET,   // Returns from a function
     FREAD,  // Reads a file
     FWRITE, // Writes to a file
     FDEL    // Deletes a file
@@ -132,7 +145,7 @@ double expr_eval(string infix)
 
                     if (is_operator(infix.at(i + 1)) || infix.at(i + 1) == ' ')
                     {
-                        cerr << "Invalid expression\n";
+                        cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                         exit(1);
                     }
                 }
@@ -156,7 +169,7 @@ double expr_eval(string infix)
             {
                 if (j % 2 == 0)
                 {
-                    cerr << "Invalid expression\n";
+                    cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                     exit(1);
                 }
 
@@ -177,7 +190,7 @@ double expr_eval(string infix)
             {
                 if (j % 2 == 1 || dot_found || is_operator(infix.at(i + 1)) || infix.at(i + 1) == ' ')
                 {
-                    cerr << "Invalid expression\n";
+                    cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                     exit(1);
                 }
 
@@ -190,7 +203,7 @@ double expr_eval(string infix)
             {
                 if (j % 2 == 1)
                 {
-                    cerr << "Invalid expression\n";
+                    cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                     exit(1);
                 }
 
@@ -262,7 +275,7 @@ double expr_eval(string infix)
             }
             else
             {
-                cerr << "Invalid expression\n";
+                cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                 exit(1);
             }
 
@@ -278,7 +291,7 @@ double expr_eval(string infix)
 
                 if (ss_num.fail())
                 {
-                    cerr << "Invalid expression\n";
+                    cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                     exit(1);
                 }
 
@@ -286,7 +299,7 @@ double expr_eval(string infix)
             }
             else
             {
-                cerr << "Invalid expression\n";
+                cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                 exit(1);
             }
 
@@ -295,20 +308,20 @@ double expr_eval(string infix)
 
         if (parentheses_count < 0)
         {
-            cerr << "Invalid expression\n";
+            cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
             exit(1);
         }
     }
 
     if (parentheses_count != 0)
     {
-        cerr << "Invalid expression\n";
+        cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
         exit(1);
     }
 
     if (operator_count != operand_count - 1)
     {
-        cerr << "Invalid expression\n";
+        cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
         exit(1);
     }
 
@@ -349,7 +362,7 @@ double expr_eval(string infix)
                 stk.pop();
             else
             {
-                cerr << "Invalid expression\n";
+                cerr << "Error: Line " << line_num + 1 << ": EXPR: Invalid expression!\n";
                 exit(1);
             }
         }
@@ -538,9 +551,11 @@ int main(int argc, char **argv)
 
     unordered_map<string, vector<string>> lines_map;
     unordered_map<string, unordered_map<int, int>> pairs_map;
-    stack<string> func_name_stk;
+    stack<string> mod_name_stk;
     stack<int> line_num_stk;
     stack<unordered_map<string, string>> memory_stk;
+    stack<int> func_line_num_stk;
+    stack<stack<int>> func_line_num_stk_stk;
 
     unordered_map<string, string> memory;
 
@@ -551,8 +566,8 @@ int main(int argc, char **argv)
 
     define_variables(memory);
 
-    int line_num = 0;
-    string func_name(argv[1]);
+    line_num = 0;
+    string mod_name(argv[1]);
     queue<string> ret_vals;
     unordered_map<int, int> pairs;
 
@@ -577,8 +592,8 @@ int main(int argc, char **argv)
             log_code log;
             string arr_name;
             string index;
-            vector<string> func_lines;
-            queue<string> func_args;
+            vector<string> mod_lines;
+            queue<string> mod_args;
 
             string key, value1, value2;
             string string_sum;
@@ -616,6 +631,24 @@ int main(int argc, char **argv)
                         op = POW;
                     else if (token == "EXPR")
                         op = EXPR;
+                    else if (token == "AND")
+                        op = AND;
+                    else if (token == "OR")
+                        op = OR;
+                    else if (token == "NOT")
+                        op = NOT;
+                    else if (token == "BAND")
+                        op = BAND;
+                    else if (token == "BOR")
+                        op = BOR;
+                    else if (token == "BNOT")
+                        op = BNOT;
+                    else if (token == "BXOR")
+                        op = BXOR;
+                    else if (token == "LSHIFT")
+                        op = LSHIFT;
+                    else if (token == "RSHIFT")
+                        op = RSHIFT;
                     else if (token == "IF")
                         op = IF;
                     else if (token == "JMP")
@@ -638,6 +671,10 @@ int main(int argc, char **argv)
                         op = RECV;
                     else if (token == "RET")
                         op = RET;
+                    else if (token == "FCALL")
+                        op = FCALL;
+                    else if (token == "FRET")
+                        op = FRET;
                     else if (token == "FREAD")
                         op = FREAD;
                     else if (token == "FWRITE")
@@ -733,7 +770,8 @@ int main(int argc, char **argv)
                             break;
                         }
                     }
-                    else if (op == ADD || op == SUB || op == MUL || op == DIV || op == MOD || op == POW)
+                    else if (op == ADD || op == SUB || op == MUL || op == DIV || op == MOD || op == POW || op == AND ||
+                             op == OR || op == BAND || op == BOR || op == BXOR || op == LSHIFT || op == RSHIFT)
                     {
                         if (i == 1)
                         {
@@ -763,10 +801,53 @@ int main(int argc, char **argv)
                                     result = modulo(stod(value1), stod(value2));
                                 else if (op == POW)
                                     result = pow(stod(value1), stod(value2));
+                                else if (op == AND)
+                                    result = stod(value1) && stod(value2);
+                                else if (op == OR)
+                                    result = stod(value1) || stod(value2);
+                                else if (op == BAND)
+                                    result = stoi(value1) & stoi(value2);
+                                else if (op == BOR)
+                                    result = stoi(value1) | stoi(value2);
+                                else if (op == BXOR)
+                                    result = stoi(value1) ^ stoi(value2);
+                                else if (op == LSHIFT)
+                                    result = stoi(value1) << stoi(value2);
+                                else if (op == RSHIFT)
+                                    result = stoi(value1) >> stoi(value2);
                             }
                             catch (const invalid_argument &ia)
                             {
-                                cerr << "Type Error: Line " << line_num + 1 << ": We only deal with doubles!\n";
+                                cerr << "Type Error: Line " << line_num + 1
+                                     << ": We only deal with integers and floats\n";
+                                exit(1);
+                            }
+
+                            update_map(memory, key, to_string(result));
+                            break;
+                        }
+                    }
+                    else if (op == NOT || op == BNOT)
+                    {
+                        if (i == 1)
+                        {
+                            key = token;
+                        }
+                        else
+                        {
+                            double result;
+
+                            try
+                            {
+                                if (op == NOT)
+                                    result = !stod(eval(token, memory));
+                                else if (op == BNOT)
+                                    result = ~stoi(eval(token, memory));
+                            }
+                            catch (const invalid_argument &ia)
+                            {
+                                cerr << "Type Error: Line " << line_num + 1
+                                     << ": We only deal with integers and floats\n";
                                 exit(1);
                             }
 
@@ -956,38 +1037,40 @@ int main(int argc, char **argv)
                                 exit(1);
                             }
 
-                            func_name_stk.push(func_name);
+                            mod_name_stk.push(mod_name);
 
-                            if (lines_map.find(func_name) == lines_map.end())
-                                lines_map[func_name] = lines;
+                            if (lines_map.find(mod_name) == lines_map.end())
+                                lines_map[mod_name] = lines;
 
-                            if (pairs_map.find(func_name) == pairs_map.end())
-                                pairs_map[func_name] = pairs;
+                            if (pairs_map.find(mod_name) == pairs_map.end())
+                                pairs_map[mod_name] = pairs;
 
                             line_num_stk.push(line_num);
                             memory_stk.push(memory);
 
-                            func_name = str;
-                            func_args.push(func_name);
+                            mod_name = str;
+                            mod_args.push(mod_name);
 
-                            if (lines_map.find(func_name) == lines_map.end())
+                            if (lines_map.find(mod_name) == lines_map.end())
                             {
                                 for (string line; getline(file, line);)
                                 {
                                     line = regex_replace(line, regex("!.*"), "");
-                                    func_lines.push_back(line);
+                                    mod_lines.push_back(line);
                                 }
                             }
                             else
                             {
-                                func_lines = lines_map[func_name];
+                                mod_lines = lines_map[mod_name];
                             }
+
+                            func_line_num_stk_stk.push(func_line_num_stk);
 
                             file.close();
                         }
                         else
                         {
-                            func_args.push(eval(token, memory));
+                            mod_args.push(eval(token, memory));
                         }
                     }
                     else if (op == RECV)
@@ -1001,6 +1084,21 @@ int main(int argc, char **argv)
                     else if (op == RET)
                     {
                         ret_vals.push(eval(token, memory));
+                    }
+                    else if (op == FCALL)
+                    {
+                        try
+                        {
+                            func_line_num_stk.push(line_num);
+                            line_num = stoi(eval(token, memory)) - 1;
+                        }
+                        catch (const invalid_argument &ia)
+                        {
+                            cerr << "Function Error: Line " << line_num + 1 << ": Invalid function index!\n";
+                            exit(1);
+                        }
+
+                        goto outer;
                     }
                     else if (op == FREAD)
                     {
@@ -1106,15 +1204,18 @@ int main(int argc, char **argv)
                         ret_vals.pop();
 
                     line_num = 0;
-                    lines = func_lines;
+                    lines = mod_lines;
+
+                    while (!func_line_num_stk.empty())
+                        func_line_num_stk.pop();
 
                     memory.clear();
-                    memory["$ARGC"] = to_string(func_args.size());
+                    memory["$ARGC"] = to_string(mod_args.size());
 
-                    for (int i = 0; !func_args.empty(); i++)
+                    for (int i = 0; !mod_args.empty(); i++)
                     {
-                        memory["$" + to_string(i)] = func_args.front();
-                        func_args.pop();
+                        memory["$" + to_string(i)] = mod_args.front();
+                        mod_args.pop();
                     }
 
                     define_variables(memory);
@@ -1128,22 +1229,40 @@ int main(int argc, char **argv)
                 {
                     break;
                 }
+                else if (op == FRET)
+                {
+                    try
+                    {
+                        line_num = func_line_num_stk.top() + 1;
+                        func_line_num_stk.pop();
+                    }
+                    catch (const out_of_range &oor)
+                    {
+                        cerr << "Function Error: Line " << line_num + 1 << ": No function to return from!\n";
+                        exit(1);
+                    }
+
+                    continue;
+                }
             }
 
             line_num++;
         }
 
-        if (func_name_stk.empty())
+        if (mod_name_stk.empty())
             break;
 
-        lines = lines_map[func_name_stk.top()];
-        pairs = pairs_map[func_name_stk.top()];
+        lines = lines_map[mod_name_stk.top()];
+        pairs = pairs_map[mod_name_stk.top()];
 
-        func_name = func_name_stk.top();
-        func_name_stk.pop();
+        mod_name = mod_name_stk.top();
+        mod_name_stk.pop();
 
         line_num = line_num_stk.top() + 1;
         line_num_stk.pop();
+
+        func_line_num_stk = func_line_num_stk_stk.top();
+        func_line_num_stk_stk.pop();
 
         memory = memory_stk.top();
         memory_stk.pop();
